@@ -38,3 +38,5 @@ left join page_likes
 on pages.page_id = page_likes.page_id 
 where page_likes.liked_date is null
 order by pages.page_id;
+--EX05:
+
