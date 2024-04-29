@@ -39,4 +39,22 @@ on pages.page_id = page_likes.page_id
 where page_likes.liked_date is null
 order by pages.page_id;
 --EX05:
+with users as 
+(SELECT user_id, 
+min(event_date) as min_date, 
+max(event_date) as max_date
+FROM user_actions 
+where event_date BETWEEN '06/01/2022' and '07/31/2022'
+group by user_id), 
+active_users as 
+(select 
+EXTRACT(MONTH from max_date) as Month,
+user_id
+from users
+where EXTRACT(MONTH from min_date)+1 = EXTRACT(MONTH from max_date)
+GROUP BY user_id,max_date)
+select month, COUNT(user_id) as monthly_active_users from active_users
+GROUP BY month
+--EX06:
+
 
