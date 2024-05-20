@@ -68,5 +68,51 @@ UPDATE sales_dataset_rfm_prj
 SET contactlastname=SUBSTRING(contactfullname FROM (POSITION ('-' IN contactfullname)+1) FOR LENGTH(contactfullname))
 
 --4. 
+ALTER TABLE sales_dataset_rfm_prj
+ADD column QTR_ID VARCHAR(50)
+
+UPDATE sales_dataset_rfm_prj
+SET QTR_ID=EXTRACT(QUARTER FROM ORDERDATE)
+
+ALTER TABLE sales_dataset_rfm_prj
+ADD column MONTH_ID integer
+
+UPDATE sales_dataset_rfm_prj
+SET MONTH_ID= EXTRACT(MONTH FROM ORDERDATE)
+
+ALTER TABLE sales_dataset_rfm_prj
+ADD column YEAR_ID integer
+
+UPDATE sales_dataset_rfm_prj
+SET YEAR_ID= EXTRACT(YEAR FROM ORDERDATE)
+--5.1
+with twt_min_max_value as (
+select Q1-1.5*IQR as min_value,
+Q3+1.5*IQR as max_value
+from(
+select
+percentile_cont (0.25) WITHIN GROUP (ORDER BY QUANTITYORDERED) AS Q1,
+percentile_cont (0.75) WITHIN GROUP (ORDER BY QUANTITYORDERED) AS Q3,
+percentile_cont (0.75) WITHIN GROUP (ORDER BY QUANTITYORDERED) -
+percentile_cont (0.25) WITHIN GROUP (ORDER BY QUANTITYORDERED) AS IQR
+from sales_dataset_rfm_prj) as a)
+select * from sales_dataset_rfm_prj
+where QUANTITYORDERED < (select min_value from twt_min_max_value)
+or QUANTITYORDERED > (select max_value from twt_min_max_value)
+--5.2
+with cte as (
+select orderdate,
+QUANTITYORDERED,
+(select avg(QUANTITYORDERED)
+from sales_dataset_rfm_prj) as avg,
+(select
+stddev(QUANTITYORDERED)
+from sales_dataset_rfm_prj)as stddev
+from sales_dataset_rfm_prj),
+
+twt_outlier as (
+select orderdate, QUANTITYORDERED, (QUANTITYORDERED - avg)/stddev as z_score from cte
+where abs((QUANTITYORDERED - avg)/stddev)>3) DELETE FROM sales_dataset_rfm_prj
+where QUANTITYORDERED in (select QUANTITYORDERED from twt_outlier)
 
  
